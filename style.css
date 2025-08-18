@@ -1,0 +1,166 @@
+/* Base styles for the fog visualizer */
+
+/* Reset some basic elements */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, Helvetica, Arial, sans-serif;
+  background-color: #0c0c12;
+  color: #eaeef2;
+  line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+header {
+  padding: 2rem 1rem;
+  text-align: center;
+  background: linear-gradient(to bottom, #0c0c12 0%, #1a1a26 100%);
+  border-bottom: 1px solid #22263a;
+}
+
+header h1 {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+header .subtitle {
+  color: #9fa6bd;
+  font-size: 0.9rem;
+}
+
+/* Image sections */
+.image-section {
+  padding: 1rem;
+}
+
+.image-section h2 {
+  margin-bottom: 0.5rem;
+  font-size: 1.3rem;
+  color: #c5cbe3;
+}
+
+.image-wrapper {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  border-radius: 0.5rem;
+  border: 1px solid #22263a;
+  background-color: #1a1a26;
+  max-width: 90vw;
+  margin: 0 auto;
+}
+
+/* Zoom wrapper for overhead view */
+.zoom-wrapper {
+  /* Fixed square crop to approximate the Bay Area */
+  width: min(600px, 90vw);
+  height: min(600px, 90vw);
+  overflow: hidden;
+}
+
+.zoom-wrapper img {
+  /* Display the full 1200x1200 image but only show a portion */
+  width: 1200px;
+  height: 1200px;
+  object-fit: none;
+  /* Adjust these percentages to move the crop window; lower percentages move
+     the crop toward the left/top, higher toward the right/bottom.  The
+     current values focus on the bottom‑left quadrant where San Francisco
+     typically appears in the PSW sector. */
+  object-position: 0% 100%;
+}
+
+/* Note styling for zoom explanation */
+.zoom-note {
+  font-size: 0.8rem;
+  color: #9fa6bd;
+  margin-bottom: 0.5rem;
+}
+
+/* Note styling for RealEarth explanation */
+.realearth-note {
+  font-size: 0.8rem;
+  color: #9fa6bd;
+  margin-bottom: 0.5rem;
+}
+
+/* Pan controls for the zoom crop */
+.zoom-controls {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: #c5cbe3;
+}
+.zoom-controls input[type="range"] {
+  width: 150px;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Timestamp overlay */
+.timestamp {
+  position: absolute;
+  bottom: 0.5rem;
+  right: 0.5rem;
+  background-color: rgba(0, 0, 0, 0.5);
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  color: #ffffff;
+}
+
+/* Controls */
+#controls {
+  padding: 1rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  border-top: 1px solid #22263a;
+  border-bottom: 1px solid #22263a;
+  background-color: #131620;
+}
+
+#controls label {
+  font-size: 0.9rem;
+  color: #c5cbe3;
+}
+
+#brightnessRange {
+  width: 200px;
+}
+
+footer {
+  padding: 1rem;
+  text-align: center;
+  font-size: 0.8rem;
+  color: #9fa6bd;
+  margin-top: auto;
+  border-top: 1px solid #22263a;
+  background-color: #0c0c12;
+}
+
+footer a {
+  color: #69a6ff;
+  text-decoration: underline;
+}
+
+footer a:hover {
+  color: #a9c8ff;
+}
