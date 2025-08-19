@@ -26,33 +26,23 @@ const brightnessCtl = document.getElementById('brightnessRange');
 // the user; update it whenever you generate a new key.
 const REALEARTH_ACCESS_KEY = '4f4c1f95381e09dad07be6d804eee673';
 
-// Return an appropriate RealEarth product depending on local time: GeoColor
-// during the day and Night Microphysics at night.
-function getRealEarthProduct() {
-  const now = new Date();
-  const hourStr = now.toLocaleString('en-US', {
-    timeZone: 'America/Los_Angeles',
-    hour: '2-digit',
-    hour12: false
-  });
-  const hour = parseInt(hourStr, 10);
-  return hour >= 6 && hour <= 18
-    ? 'G18-ABI-CONUS-geo-color'
-    : 'G18-ABI-CONUS-night-microphysics';
-}
+// Fixed RealEarth product for fog RGB.  Fog RGB emphasises low clouds and
+// marine layer and provides good contrast day and night.  See
+// https://realearth.ssec.wisc.edu/products for details.
+const RE_PRODUCT = 'G18-ABI-CONUS-fog';
 
 // Map default view (center on SF Bay).  Latitude, longitude.
-const RE_CENTER   = [37.8, -122.3];
-const RE_ZOOM     = 6;               // Leaflet zoom 0..19 (6 shows NorCal nicely)
+// Center the map tightly on the San Francisco Bay Area and zoom in for a
+// closer view.  Higher zoom values show a smaller region in more detail.
+const RE_CENTER   = [37.75, -122.45];
+const RE_ZOOM     = 8;
 let reMap, reLayer;
 
 // Build tile URL template with key + cachebuster
 function realEarthTileTemplate() {
-  const product = getRealEarthProduct();
-  const base = `https://realearth.ssec.wisc.edu/tiles/${product}/{z}/{x}/{y}.png`;
+  const base = `https://realearth.ssec.wisc.edu/tiles/${RE_PRODUCT}/{z}/{x}/{y}.png`;
   const qs = new URLSearchParams();
   if (REALEARTH_ACCESS_KEY) {
-    // Attach your access key to avoid watermarking or referer errors.
     qs.set('accesskey', REALEARTH_ACCESS_KEY);
   }
   qs.set('v', Date.now().toString());
@@ -75,10 +65,122 @@ function initRealEarthMap() {
     keepBuffer: 0,
     crossOrigin: false
   }).addTo(reMap);
+
+  // Add base roads and labels overlays from CartoDB.  These tiles are
+  // publicly available and include roads (no labels) and labels only.  The
+  // opacity controls how strongly they appear over the satellite imagery.
+  const roadsLayer = L.tileLayer(
+    'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png',
+    {
+      subdomains: 'abcd',
+      attribution: '&copy; OpenStreetMap contributors & CartoDB',
+      opacity: 0.5,
+      maxZoom: 19
+    }
+  );
+  const labelsLayer = L.tileLayer(
+    'https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png',
+    {
+      subdomains: 'abcd',
+      attribution: '&copy; OpenStreetMap contributors & CartoDB',
+      opacity: 0.8,
+      maxZoom: 19
+    }
+  );
+  roadsLayer.addTo(reMap);
+  labelsLayer.addTo(reMap);
 }
 
 function refreshRealEarthTiles() {
   if (reLayer) reLayer.setUrl(realEarthTileTemplate());
+  updateTimestamp();
+}
+
+// Convert a Date object to RealEarth tile path components.
+// Returns an object { date: 'YYYYMMDD', time: 'HHMMSS' }.
+function formatTimeForRealEarth(date) {
+  const pad = (n) => String(n).padStart(2, '0');
+  const yyyy = date.getUTCFullYear();
+  const mm = pad(date.getUTCMonth() + 1);
+  const dd = pad(date.getUTCDate());
+  const HH = pad(date.getUTCHours());
+  const MM = pad(date.getUTCMinutes());
+  const SS = pad(date.getUTCSeconds());
+  return { date: `${yyyy}${mm}${dd}`, time: `${HH}${MM}${SS}` };
+}
+
+// Get an array of Date objects representing the last n 5‑minute intervals
+// including now.  For example, getRecentTimes(3) returns [now, now‑5min, now‑10min].
+function getRecentTimes(n) {
+  const times = [];
+  const now = new Date();
+  // Round down to the nearest 5‑minute boundary
+  const rounded = new Date(now.getTime() - (now.getUTCMinutes() % 5) * 60000 - now.getUTCSeconds() * 1000 - now.getUTCMilliseconds());
+  for (let i = 0; i < n; i++) {
+    times.push(new Date(rounded.getTime() - i * 5 * 60000));
+  }
+  return times;
+}
+
+// Build a tile URL template for a specific time (UTC).
+function realEarthTileTemplateForTime(dateObj) {
+  const { date, time } = formatTimeForRealEarth(dateObj);
+  const base = `https://realearth.ssec.wisc.edu/tiles/${RE_PRODUCT}/${date}/${time}/{z}/{x}/{y}.png`;
+  const qs = new URLSearchParams();
+  if (REALEARTH_ACCESS_KEY) qs.set('accesskey', REALEARTH_ACCESS_KEY);
+  qs.set('v', Date.now().toString());
+  return `${base}?${qs.toString()}`;
+}
+
+// Update the timestamp overlay to show the current refresh time (local timezone).
+function updateTimestamp() {
+  const tsEl = document.getElementById('timestamp');
+  if (!tsEl) return;
+  const now = new Date();
+  const local = now.toLocaleString('en-US', {
+    timeZone: 'America/Los_Angeles',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  });
+  tsEl.textContent = `Updated ${local}`;
+}
+
+// Replay the last 15 minutes of tiles (3 frames).  When finished, the
+// map returns to the latest imagery.  Disable the replay button while
+// playing to avoid overlapping animations.
+function startReplay() {
+  const btn = document.getElementById('replayBtn');
+  if (!btn || !reLayer) return;
+  btn.disabled = true;
+  const frames = getRecentTimes(3);
+  let idx = frames.length - 1; // start with the oldest frame
+  function showNext() {
+    const frameDate = frames[idx];
+    reLayer.setUrl(realEarthTileTemplateForTime(frameDate));
+    // Update timestamp overlay to reflect the frame's time (local timezone)
+    const tsEl = document.getElementById('timestamp');
+    if (tsEl) {
+      const local = frameDate.toLocaleString('en-US', {
+        timeZone: 'America/Los_Angeles',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+      tsEl.textContent = `Showing ${local}`;
+    }
+    idx++;
+    if (idx < frames.length) {
+      setTimeout(showNext, 1500);
+    } else {
+      // Restore latest after a pause
+      setTimeout(() => {
+        refreshRealEarthTiles();
+        btn.disabled = false;
+      }, 1500);
+    }
+  }
+  showNext();
 }
 
 // -------------------------------
@@ -86,7 +188,10 @@ function refreshRealEarthTiles() {
 // -------------------------------
 function applyBrightness() {
   const factor = Number(brightnessCtl.value) / 100;
-  const filter = `brightness(${factor})`;
+  // Apply both brightness and contrast.  A higher brightness also scales the
+  // contrast for greater differentiation of clouds at night.
+  const contrast = 1 + (factor - 1) * 1.2;
+  const filter = `brightness(${factor}) contrast(${contrast})`;
   const tilePane = document.querySelector('#re-map .leaflet-pane.leaflet-tile-pane');
   if (tilePane) tilePane.style.filter = filter;
 }
@@ -99,15 +204,16 @@ function refreshMap() {
 }
 
 function startAlignedRefresh() {
-  // Compute ms until the next UTC 5-minute boundary, add ~20s cushion
+  // Compute ms until the next UTC 15‑minute boundary (00, 15, 30, 45), add ~20s cushion
   const now = new Date();
-  const msToNext5 =
-    (5 - (now.getUTCMinutes() % 5)) * 60_000
+  const minutes = now.getUTCMinutes();
+  const msToNext15 =
+    (15 - (minutes % 15)) * 60_000
     - (now.getUTCSeconds() * 1000 + now.getUTCMilliseconds());
-  const delay = Math.max(5_000, msToNext5 + 20_000);
+  const delay = Math.max(5_000, msToNext15 + 20_000);
   setTimeout(function tick() {
     refreshMap();
-    setTimeout(tick, 5 * 60_000);
+    setTimeout(tick, 15 * 60_000);
   }, delay);
 }
 
@@ -125,4 +231,9 @@ window.addEventListener('DOMContentLoaded', () => {
   refreshMap();       // fetch now
   startAlignedRefresh();
   brightnessCtl.addEventListener('input', applyBrightness);
+
+  const replayBtn = document.getElementById('replayBtn');
+  if (replayBtn) {
+    replayBtn.addEventListener('click', startReplay);
+  }
 });

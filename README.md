@@ -55,7 +55,7 @@ RealEarth account** and attach your access key to each tile request:
    query parameter (the format RealEarth requires).  For example:
 
    ```js
-   const REALEARTH_ACCESS_KEY = 'xxxxx';
+   const REALEARTH_ACCESS_KEY = '4f4c1f95381e09dad07be6d804eee673';
    ```
 
 Tiles will load automatically every five minutes.  If you leave the
@@ -75,14 +75,18 @@ This version relies solely on RealEarth tiles.  Leaflet requests
 applies at the current time.  Each request attaches your access key
 for watermark‑free imagery.  The map refreshes itself every five
 minutes in sync with the ABI scan cadence.  There are no separate
-NOAA still or GIF files.
+NOAA still or GIF files.  A **Replay last 15 min** button allows
+you to cycle through the last three frames (5‑minute intervals)
+without leaving the overhead view; it temporarily switches the
+tile URLs to specific timestamps and then restores the latest layer.
 
 ## Customization
 
 * **Change the region** – To visualize a different area, adjust the
-  `REAL_EARTH_CENTER` coordinates (longitude, latitude) and `REAL_EARTH_ZOOM`
-  in `script.js`.  For example, to center on Los Angeles, set
-  `[-118.25, 34.05]`.
+  `RE_CENTER` coordinates (latitude, longitude) and `RE_ZOOM` values in
+  `script.js`.  For example, to center on Los Angeles, set
+  `RE_CENTER` to `[34.05, -118.25]` and increase or decrease `RE_ZOOM` to
+  control the field of view (higher values zoom in).
 * **Adjust brightness** – The night brightness slider modifies the
   CSS `brightness()` filter applied to all images.  The code
   automatically sets a higher brightness at night (local time 6 pm to
