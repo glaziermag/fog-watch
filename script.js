@@ -34,7 +34,13 @@ let reMap, reLayer;
 function realEarthTileTemplate() {
   const base = `https://realearth.ssec.wisc.edu/tiles/${RE_PRODUCT}/{z}/{x}/{y}.png`;
   const qs = new URLSearchParams();
-  if (REALEARTH_ACCESS_KEY) qs.set('key', REALEARTH_ACCESS_KEY);
+  if (REALEARTH_ACCESS_KEY) {
+    // RealEarth expects the access key to be provided via the 'accesskey'
+    // query parameter (as shown in their API examples) or via the
+    // RE-Access-Key header.  Using 'key' will not work and will result
+    // in watermarking or referer errors.
+    qs.set('accesskey', REALEARTH_ACCESS_KEY);
+  }
   qs.set('v', Date.now().toString());
   return `${base}?${qs.toString()}`;
 }

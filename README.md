@@ -47,7 +47,9 @@ your access key to each tile request:
 1. Visit the RealEarth **[registration page](https://realearth.ssec.wisc.edu/user/tools/register)** and create an account.  Registration is free and only requires basic contact information.
 2. In **User Tools**, create an **Access Key**.  RealEarth will show a long string of letters and numbers; copy it.
 3. Still in **User Tools**, open the **Allowed IPs/Referrers** dialog and add your site’s domain (e.g. `glaziermag.github.io` and `glaziermag.github.io/fog-watch`).  This ensures RealEarth honours requests from your site【704582725459236†L7-L16】.
-4. Open `script.js` and set `REALEARTH_ACCESS_KEY` to your key.  For example:
+4. Open `script.js` and set `REALEARTH_ACCESS_KEY` to your key.  The script
+   automatically appends the key to each tile request using the **`accesskey`**
+   query parameter (the format RealEarth requires).  For example:
 
    ```js
    const REALEARTH_ACCESS_KEY = '4f4c1f95381e09dad07be6d804eee673';
