@@ -55,7 +55,7 @@ RealEarth account** and attach your access key to each tile request:
    query parameter (the format RealEarth requires).  For example:
 
    ```js
-   const REALEARTH_ACCESS_KEY = 'xxxxxx';
+   const REALEARTH_ACCESS_KEY = '4f4c1f95381e09dad07be6d804eee673';
    ```
 
 Tiles will load automatically every five minutes.  If you leave the
@@ -82,11 +82,10 @@ tile URLs to specific timestamps and then restores the latest layer.
 
 ## Customization
 
-* **Change the region** – To visualize a different area, adjust the
-  `RE_CENTER` coordinates (latitude, longitude) and `RE_ZOOM` values in
-  `script.js`.  For example, to center on Los Angeles, set
-  `RE_CENTER` to `[34.05, -118.25]` and increase or decrease `RE_ZOOM` to
-  control the field of view (higher values zoom in).
+* **Change the region** – To visualize a different area or adjust the
+  level of detail, edit `RE_CENTER` and `RE_ZOOM` in `script.js`.  For
+  instance, to focus on Los Angeles you might set
+  `RE_CENTER` to `[34.05, -118.25]` and choose a `RE_ZOOM` around 9–10.
 * **Adjust brightness** – The night brightness slider modifies the
   CSS `brightness()` filter applied to all images.  The code
   automatically sets a higher brightness at night (local time 6 pm to

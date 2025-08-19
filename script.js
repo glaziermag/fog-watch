@@ -35,7 +35,7 @@ const RE_PRODUCT = 'G18-ABI-CONUS-fog';
 // Center the map tightly on the San Francisco Bay Area and zoom in for a
 // closer view.  Higher zoom values show a smaller region in more detail.
 const RE_CENTER   = [37.75, -122.45];
-const RE_ZOOM     = 8;
+const RE_ZOOM     = 9;
 let reMap, reLayer;
 
 // Build tile URL template with key + cachebuster
@@ -69,6 +69,8 @@ function initRealEarthMap() {
   // Add base roads and labels overlays from CartoDB.  These tiles are
   // publicly available and include roads (no labels) and labels only.  The
   // opacity controls how strongly they appear over the satellite imagery.
+  // Add a road overlay without labels from CartoDB.  Labels have been
+  // removed per user request.
   const roadsLayer = L.tileLayer(
     'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png',
     {
@@ -78,17 +80,7 @@ function initRealEarthMap() {
       maxZoom: 19
     }
   );
-  const labelsLayer = L.tileLayer(
-    'https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png',
-    {
-      subdomains: 'abcd',
-      attribution: '&copy; OpenStreetMap contributors & CartoDB',
-      opacity: 0.8,
-      maxZoom: 19
-    }
-  );
   roadsLayer.addTo(reMap);
-  labelsLayer.addTo(reMap);
 }
 
 function refreshRealEarthTiles() {
