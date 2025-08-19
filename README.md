@@ -52,7 +52,7 @@ your access key to each tile request:
    query parameter (the format RealEarth requires).  For example:
 
    ```js
-   const REALEARTH_ACCESS_KEY = '4f4c1f95381e09dad07be6d804eee673';
+   const REALEARTH_ACCESS_KEY = 'xxxxxx';
    ```
 
 5. Choose your RealEarth product by editing `RE_PRODUCT` in `script.js`.  Good options are:
