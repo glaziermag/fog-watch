@@ -1,13 +1,21 @@
-// -------------------------------
-// NOAA STAR (public) endpoints
-// -------------------------------
-const LATEST_URL = 'https://cdn.star.nesdis.noaa.gov/GOES19/ABI/SECTOR/psw/GEOCOLOR/1200x1200.jpg';
-const LOOP_URL   = 'https://cdn.star.nesdis.noaa.gov/GOES19/ABI/SECTOR/PSW/GEOCOLOR/GOES19-PSW-GEOCOLOR-600x600.gif';
-
-// DOM handles
-const latestImg     = document.getElementById('latest-image');
-const loopImg       = document.getElementById('loop-image');
+// Slider controlling overall brightness of the map imagery
 const brightnessCtl = document.getElementById('brightnessRange');
+
+// Boost brightness by default at night (America/Los_Angeles)
+(() => {
+  const now = new Date();
+  const hour = parseInt(
+    now.toLocaleString('en-US', {
+      timeZone: 'America/Los_Angeles',
+      hour: '2-digit',
+      hour12: false
+    }),
+    10
+  );
+  if (hour < 6 || hour > 18) {
+    brightnessCtl.value = 150;
+  }
+})();
 
 // -------------------------------
 // RealEarth (tiles via Leaflet)
@@ -18,12 +26,20 @@ const brightnessCtl = document.getElementById('brightnessRange');
 // the user; update it whenever you generate a new key.
 const REALEARTH_ACCESS_KEY = '4f4c1f95381e09dad07be6d804eee673';
 
-// Choose the RealEarth product (pick ONE).  Fog RGB is ideal at night because
-// it highlights low-level clouds, while GeoColor gives a blended day/night
-// representation.  Night Microphysics is another option for night fog.
-const RE_PRODUCT = 'G18-ABI-CONUS-fog';          // Fog RGB
-// const RE_PRODUCT = 'G18-ABI-CONUS-geo-color'; // True-color day / IR night
-// const RE_PRODUCT = 'G18-ABI-CONUS-night-microphysics'; // Enhanced night fog contrast
+// Return an appropriate RealEarth product depending on local time: GeoColor
+// during the day and Night Microphysics at night.
+function getRealEarthProduct() {
+  const now = new Date();
+  const hourStr = now.toLocaleString('en-US', {
+    timeZone: 'America/Los_Angeles',
+    hour: '2-digit',
+    hour12: false
+  });
+  const hour = parseInt(hourStr, 10);
+  return hour >= 6 && hour <= 18
+    ? 'G18-ABI-CONUS-geo-color'
+    : 'G18-ABI-CONUS-night-microphysics';
+}
 
 // Map default view (center on SF Bay).  Latitude, longitude.
 const RE_CENTER   = [37.8, -122.3];
@@ -32,13 +48,11 @@ let reMap, reLayer;
 
 // Build tile URL template with key + cachebuster
 function realEarthTileTemplate() {
-  const base = `https://realearth.ssec.wisc.edu/tiles/${RE_PRODUCT}/{z}/{x}/{y}.png`;
+  const product = getRealEarthProduct();
+  const base = `https://realearth.ssec.wisc.edu/tiles/${product}/{z}/{x}/{y}.png`;
   const qs = new URLSearchParams();
   if (REALEARTH_ACCESS_KEY) {
-    // RealEarth expects the access key to be provided via the 'accesskey'
-    // query parameter (as shown in their API examples) or via the
-    // RE-Access-Key header.  Using 'key' will not work and will result
-    // in watermarking or referer errors.
+    // Attach your access key to avoid watermarking or referer errors.
     qs.set('accesskey', REALEARTH_ACCESS_KEY);
   }
   qs.set('v', Date.now().toString());
@@ -73,8 +87,6 @@ function refreshRealEarthTiles() {
 function applyBrightness() {
   const factor = Number(brightnessCtl.value) / 100;
   const filter = `brightness(${factor})`;
-  latestImg.style.filter = filter;
-  loopImg.style.filter = filter;
   const tilePane = document.querySelector('#re-map .leaflet-pane.leaflet-tile-pane');
   if (tilePane) tilePane.style.filter = filter;
 }
@@ -82,10 +94,7 @@ function applyBrightness() {
 // -------------------------------
 // Update cadence (align to ABI 5‑min boundaries)
 // -------------------------------
-function updateImages() {
-  const t = Date.now();
-  latestImg.src = `${LATEST_URL}?v=${t}`;
-  loopImg.src   = `${LOOP_URL}?v=${t}`;
+function refreshMap() {
   refreshRealEarthTiles();
 }
 
@@ -97,14 +106,14 @@ function startAlignedRefresh() {
     - (now.getUTCSeconds() * 1000 + now.getUTCMilliseconds());
   const delay = Math.max(5_000, msToNext5 + 20_000);
   setTimeout(function tick() {
-    updateImages();
+    refreshMap();
     setTimeout(tick, 5 * 60_000);
   }, delay);
 }
 
 // Refresh whenever the tab becomes visible
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden) updateImages();
+  if (!document.hidden) refreshMap();
 });
 
 // -------------------------------
@@ -113,7 +122,7 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('DOMContentLoaded', () => {
   initRealEarthMap();
   applyBrightness();
-  updateImages();       // fetch now
+  refreshMap();       // fetch now
   startAlignedRefresh();
   brightnessCtl.addEventListener('input', applyBrightness);
 });

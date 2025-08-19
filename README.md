@@ -1,21 +1,25 @@
 # Bay Area Fog Visualizer – Setup Guide
 
 This project contains a static web page that visualizes fog and low cloud
-conditions over the San Francisco Bay Area.  It combines **NOAA GOES‑19
-GeoColor** imagery with map‑projected tiles from the University of
-Wisconsin’s **RealEarth** platform.  The site updates itself
-automatically every five minutes, aligns refreshes to the ABI scan
-cadence and includes a brightness slider for nighttime viewing.
+conditions over the San Francisco Bay Area using only map‑projected
+tiles from the University of Wisconsin’s **RealEarth** platform.  Earlier
+versions of this project included angled still images and animated
+loops from NOAA; those have been removed so that the page now
+displays a single, true overhead view of Northern California.  The
+site automatically selects an appropriate satellite product for
+daylight (GeoColor) or night (Night Microphysics), refreshes the
+imagery every five minutes and offers a brightness slider for
+nighttime viewing.
 
 ## Files
 
-* `index.html` – markup for the page, including sections for the latest
-  still image, a two‑hour animated loop and a Leaflet map that displays
-  RealEarth tiles.
+* `index.html` – markup for the page, including a brightness slider and
+  a Leaflet map container.  The overhead map appears first on the page.
 * `style.css` – dark‑themed styling and responsive layout.
-* `script.js` – JavaScript that fetches imagery, schedules updates,
-  builds the RealEarth tile URL with your access key, initializes a
-  Leaflet map and applies brightness filters.
+* `script.js` – JavaScript that determines which RealEarth product to
+  use (day vs. night), builds tile URLs with your access key,
+  initializes a Leaflet map, refreshes the imagery every five
+  minutes and manages brightness.
 * `README.md` – this document.
 
 ## Deployment
@@ -38,11 +42,10 @@ hosting providers’ free tiers are sufficient.
 
 ## RealEarth tiles (required for overhead)
 
-The “Overhead (RealEarth tiles)” section uses RealEarth’s tile
-pyramid instead of a single composite.  Each tile is 256×256 pixels
-and is requested on the fly via Leaflet.  To use this feature without
-watermarks you must **register a free RealEarth account** and attach
-your access key to each tile request:
+The page uses RealEarth’s tile pyramid instead of a single composite.  Each
+tile is 256×256 pixels and is requested on the fly via Leaflet.  To
+use this feature without watermarks you must **register a free
+RealEarth account** and attach your access key to each tile request:
 
 1. Visit the RealEarth **[registration page](https://realearth.ssec.wisc.edu/user/tools/register)** and create an account.  Registration is free and only requires basic contact information.
 2. In **User Tools**, create an **Access Key**.  RealEarth will show a long string of letters and numbers; copy it.
@@ -52,31 +55,27 @@ your access key to each tile request:
    query parameter (the format RealEarth requires).  For example:
 
    ```js
-   const REALEARTH_ACCESS_KEY = 'xxxxxx';
+   const REALEARTH_ACCESS_KEY = '4f4c1f95381e09dad07be6d804eee673';
    ```
 
-5. Choose your RealEarth product by editing `RE_PRODUCT` in `script.js`.  Good options are:
-   * `G18-ABI-CONUS-fog` – Fog RGB (shows low clouds and fog, especially at night).
-   * `G18-ABI-CONUS-geo-color` – True-color day and IR at night.
-   * `G18-ABI-CONUS-night-microphysics` – Enhanced night fog contrast.
-
 Tiles will load automatically every five minutes.  If you leave the
-access key empty or do not register your domain, RealEarth will return
-watermarks or an error message.
+access key empty or do not register your domain, RealEarth will
+return watermarks or an error message.
 
-## Imagery sources and update frequency
+The code automatically selects the product: it requests the
+**GeoColor CONUS** product during daylight hours and the **Night
+Microphysics** product after dark.  You can adjust the hour
+thresholds or product IDs in `script.js` if you prefer a different
+combination.
 
-* **Latest still image** and **two‑hour loop** – The page fetches the
-  latest GOES‑19 GeoColor JPEG and a two‑hour animated GIF from NOAA’s
-  public STAR CDN.  These images are updated every **five minutes** for
-  sectors like the Pacific Southwest (PSW).  The JavaScript appends a
-  cache‑busting timestamp and synchronizes refreshes to five‑minute
-  boundaries with a 20 second cushion.
-* **RealEarth tiles** – Leaflet requests 256×256 tiles from RealEarth’s
-  tile server.  This yields a true overhead view that you can pan and
-  zoom.  Each tile request attaches your access key for watermark‑free
-  imagery.  The map refreshes every five minutes in sync with the
-  latest NOAA images.
+## Imagery source and update frequency
+
+This version relies solely on RealEarth tiles.  Leaflet requests
+256×256 tiles from RealEarth’s tile server for whichever product
+applies at the current time.  Each request attaches your access key
+for watermark‑free imagery.  The map refreshes itself every five
+minutes in sync with the ABI scan cadence.  There are no separate
+NOAA still or GIF files.
 
 ## Customization
 

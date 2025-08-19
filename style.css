@@ -75,8 +75,6 @@ h2 {
 }
 
 /* Smooth fade when brightness changes */
-#latest-image,
-#loop-image,
 .map .leaflet-pane.leaflet-tile-pane {
   transition: filter 160ms ease;
 }

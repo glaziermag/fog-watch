@@ -18,7 +18,8 @@
 <body>
   <header>
     <h1>Fog Watch — Bay Area</h1>
-    <p>Latest GOES imagery (NOAA + RealEarth). Night brightness slider included.</p>
+    <p>Map‑projected GOES imagery via RealEarth.  Use the brightness slider to
+      improve visibility at night.</p>
   </header>
 
   <section class="controls">
@@ -26,34 +27,18 @@
     <input id="brightnessRange" type="range" min="40" max="180" value="110" />
   </section>
 
-  <!-- Latest still image -->
-  <section id="latest-section" class="image-section">
-    <h2>Latest (NOAA GeoColor)</h2>
-    <img id="latest-image"
-         alt="Latest GeoColor (PSW sector)"
-         src=""
-         width="1200" height="1200" />
-  </section>
-
-  <!-- 2-hour loop -->
-  <section id="loop-section" class="image-section">
-    <h2>2‑Hour Loop (NOAA)</h2>
-    <img id="loop-image"
-         alt="2-hour loop (PSW sector)"
-         src=""
-         width="600" height="600" />
-  </section>
-
-  <!-- Overhead map using RealEarth tiles -->
+  <!-- Overhead map using RealEarth tiles (moved to the top) -->
   <section id="overhead-section" class="image-section">
     <h2>Overhead (RealEarth tiles)</h2>
     <p class="realearth-note">
-      Map-projected tiles from RealEarth (GOES‑West CONUS). Add your GitHub Pages
-      domain to RealEarth <em>Allowed Referrers</em> and attach your Access Key to requests
-      to avoid watermark / referer errors.
+      Map‑projected tiles from RealEarth (GOES‑West CONUS). Your access key is
+      attached automatically. The imagery switches products at night to
+      highlight clouds and fog.
     </p>
     <div id="re-map" class="map"></div>
   </section>
+
+  <!-- Removed duplicate overhead section -->
 
   <!-- Leaflet JS -->
   <script
