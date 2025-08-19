@@ -1,126 +1,67 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Fog Visualizer – Bay Area Edition</title>
-    <!-- Main stylesheet -->
-    <link rel="stylesheet" href="style.css" />
-  </head>
-  <body>
-    <header>
-      <h1>Bay Area Fog Visualizer</h1>
-      <p class="subtitle">
-        Real‑time fog conditions for the Northern California coast using
-        GOES‑19 GeoColor imagery
-      </p>
-    </header>
+<head>
+  <meta charset="utf-8" />
+  <title>Fog Watch — Bay Area</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <!-- Latest still image -->
-    <section id="latest-section" class="image-section">
-      <h2>Latest Image</h2>
-      <div class="image-wrapper">
-        <img
-          id="latest-image"
-          src=""
-          alt="Latest GOES‑19 GeoColor image"
-          crossorigin="anonymous"
-        />
-        <div id="timestamp" class="timestamp"></div>
-      </div>
-    </section>
+  <link rel="stylesheet" href="style.css" />
 
-    <!-- RealEarth overhead view -->
-    <section id="realearth-section" class="image-section">
-      <h2>RealEarth Overhead</h2>
-      <p class="realearth-note">
-        This overhead view is produced by the University of Wisconsin’s RealEarth API,
-        which reprojects GOES imagery onto a map grid for a top‑down look. For the
-        best experience, sign up for a free RealEarth account and add your site’s
-        domain as an allowed referrer (see the README for details). Anonymous
-        requests are limited to 512px composites and may show watermarks or fail.
-      </p>
-      <div class="image-wrapper">
-        <img
-          id="re-image"
-          src=""
-          alt="RealEarth overhead image"
-          crossorigin="anonymous"
-        />
-      </div>
-    </section>
+  <!-- Leaflet (for RealEarth tiles / overhead map) -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+</head>
+<body>
+  <header>
+    <h1>Fog Watch — Bay Area</h1>
+    <p>Latest GOES imagery (NOAA + RealEarth). Night brightness slider included.</p>
+  </header>
 
-    <!-- Overhead zoom view -->
-    <section id="zoom-section" class="image-section">
-      <h2>Overhead Zoom</h2>
-      <p class="zoom-note">
-        This cropped view approximates a top‑down look at the Bay Area by
-        focusing on the lower‑left portion of the GeoColor image.  Because
-        GOES‑19 captures a wide Pacific sector from a geostationary orbit,
-        the horizon appears curved; cropping helps provide a more overhead
-        impression.  The exact crop is adjusted via CSS and may need minor
-        tweaking to center your area of interest.
-      </p>
-      <div class="image-wrapper zoom-wrapper">
-        <img
-          id="zoom-image"
-          src=""
-          alt="Cropped overhead view of the Bay Area"
-          crossorigin="anonymous"
-        />
-      </div>
+  <section class="controls">
+    <label for="brightnessRange">Night brightness</label>
+    <input id="brightnessRange" type="range" min="40" max="180" value="110" />
+  </section>
 
-      <!-- Zoom controls for panning the crop -->
-      <div class="zoom-controls">
-        <label for="panXRange">Pan left/right:</label>
-        <input type="range" id="panXRange" min="0" max="100" value="0" />
-        <label for="panYRange">Pan up/down:</label>
-        <input type="range" id="panYRange" min="0" max="100" value="80" />
-      </div>
-    </section>
+  <!-- Latest still image -->
+  <section id="latest-section" class="image-section">
+    <h2>Latest (NOAA GeoColor)</h2>
+    <img id="latest-image"
+         alt="Latest GeoColor (PSW sector)"
+         src=""
+         width="1200" height="1200" />
+  </section>
 
-    <!-- Two hour loop -->
-    <section id="loop-section" class="image-section">
-      <h2>Two‑Hour Loop</h2>
-      <div class="image-wrapper">
-        <img
-          id="loop-image"
-          src=""
-          alt="Two hour animation of GeoColor imagery"
-          crossorigin="anonymous"
-        />
-      </div>
-    </section>
+  <!-- 2-hour loop -->
+  <section id="loop-section" class="image-section">
+    <h2>2‑Hour Loop (NOAA)</h2>
+    <img id="loop-image"
+         alt="2-hour loop (PSW sector)"
+         src=""
+         width="600" height="600" />
+  </section>
 
-    <!-- Controls -->
-    <section id="controls">
-      <label for="brightnessRange">Night brightness:</label>
-      <input
-        type="range"
-        id="brightnessRange"
-        min="100"
-        max="250"
-        value="150"
-      />
-    </section>
+  <!-- Overhead map using RealEarth tiles -->
+  <section id="overhead-section" class="image-section">
+    <h2>Overhead (RealEarth tiles)</h2>
+    <p class="realearth-note">
+      Map-projected tiles from RealEarth (GOES‑West CONUS). Add your GitHub Pages
+      domain to RealEarth <em>Allowed Referrers</em> and attach your Access Key to requests
+      to avoid watermark / referer errors.
+    </p>
+    <div id="re-map" class="map"></div>
+  </section>
 
-    <footer>
-      <p>
-        Imagery courtesy of NOAA/NESDIS/STAR
-        (<a
-          href="https://community.hubitat.com/t/add-weather-radar-to-a-dashboard-easy/45793"
-          target="_blank"
-          rel="noopener noreferrer"
-          >source</a
-        >).
-      </p>
-      <p class="credit">
-        Data updates every 5 minutes and are synchronized to the Bay Area
-        timezone (Pacific Time).
-      </p>
-    </footer>
+  <!-- Leaflet JS -->
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
 
-    <!-- Main script -->
-    <script src="script.js"></script>
-  </body>
+  <script src="script.js"></script>
+</body>
 </html>

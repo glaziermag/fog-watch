@@ -2,19 +2,20 @@
 
 This project contains a static web page that visualizes fog and low cloud
 conditions over the San Francisco Bay Area.  It combines **NOAA GOES‑19
-GeoColor** imagery with an optional overhead view provided by the
-University of Wisconsin’s **RealEarth** API.  The site updates itself
-automatically every five minutes and includes a brightness slider for
-nighttime viewing.
+GeoColor** imagery with map‑projected tiles from the University of
+Wisconsin’s **RealEarth** platform.  The site updates itself
+automatically every five minutes, aligns refreshes to the ABI scan
+cadence and includes a brightness slider for nighttime viewing.
 
 ## Files
 
 * `index.html` – markup for the page, including sections for the latest
-  still image, a RealEarth overhead view, a cropped zoom with pan
-  controls, a two‑hour animated loop and brightness controls.
+  still image, a two‑hour animated loop and a Leaflet map that displays
+  RealEarth tiles.
 * `style.css` – dark‑themed styling and responsive layout.
 * `script.js` – JavaScript that fetches imagery, schedules updates,
-  applies brightness filters and handles pan/zoom controls.
+  builds the RealEarth tile URL with your access key, initializes a
+  Leaflet map and applies brightness filters.
 * `README.md` – this document.
 
 ## Deployment
@@ -35,57 +36,31 @@ For Netlify or Vercel, drag and drop the folder in their web UI or use
 their CLI tools.  Because the site contains no server‑side code, all
 hosting providers’ free tiers are sufficient.
 
-## RealEarth overhead imagery (optional)
+## RealEarth tiles (required for overhead)
 
-FogToday’s overhead view is generated via RealEarth, which
-reprojects satellite data onto a map grid.  Anonymous RealEarth
-requests have strict limits (512×512 pixels and 500 megapixels of data
-per day), so to make full use of the “RealEarth Overhead” section you
-should **register a free RealEarth account**:
+The “Overhead (RealEarth tiles)” section uses RealEarth’s tile
+pyramid instead of a single composite.  Each tile is 256×256 pixels
+and is requested on the fly via Leaflet.  To use this feature without
+watermarks you must **register a free RealEarth account** and attach
+your access key to each tile request:
 
-1. Navigate to the RealEarth **[registration page](https://realearth.ssec.wisc.edu/user/tools/register)** and create an account.  Registration is free and only requires basic contact information.
-2. Once logged in, click **User Tools** → **Access Keys** and create
-   a new key.  RealEarth will show a long string of letters and
-   numbers; copy it to your clipboard.
-3. Add your site’s domain (e.g. `https://yourusername.github.io`) as an
-   **allowed referrer** in the same User Tools panel.  This step
-   ensures that RealEarth knows which sites are permitted to request
-   imagery using your key.
-4. Open `script.js` and locate the line:
+1. Visit the RealEarth **[registration page](https://realearth.ssec.wisc.edu/user/tools/register)** and create an account.  Registration is free and only requires basic contact information.
+2. In **User Tools**, create an **Access Key**.  RealEarth will show a long string of letters and numbers; copy it.
+3. Still in **User Tools**, open the **Allowed IPs/Referrers** dialog and add your site’s domain (e.g. `glaziermag.github.io` and `glaziermag.github.io/fog-watch`).  This ensures RealEarth honours requests from your site【704582725459236†L7-L16】.
+4. Open `script.js` and set `REALEARTH_ACCESS_KEY` to your key.  For example:
 
    ```js
-   const REALEARTH_ACCESS_KEY = "";
+   const REALEARTH_ACCESS_KEY = '4f4c1f95381e09dad07be6d804eee673';
    ```
 
-   Paste your key between the quotes.  For example:
+5. Choose your RealEarth product by editing `RE_PRODUCT` in `script.js`.  Good options are:
+   * `G18-ABI-CONUS-fog` – Fog RGB (shows low clouds and fog, especially at night).
+   * `G18-ABI-CONUS-geo-color` – True-color day and IR at night.
+   * `G18-ABI-CONUS-night-microphysics` – Enhanced night fog contrast.
 
-   ```js
-   const REALEARTH_ACCESS_KEY = "abcdef12345yourkey";
-   ```
-
-5. Optionally adjust the `REAL_EARTH_WIDTH` and `REAL_EARTH_HEIGHT`
-   constants.  By default they are set to `800` pixels, well within
-   RealEarth’s free tier (1024 px limit when logged in).  You may
-   increase these values up to 1024 as long as you remain under
-   RealEarth’s free quota.
-
-Once configured, refresh the page in your browser.  The **RealEarth
-Overhead** image should load without a watermark.  The site will
-fetch a fresh overhead image every five minutes.  If RealEarth is not
-reachable or your access key is missing, this section will simply
-show a blank or watermarked image and the rest of the page will
-continue to function.
-
-### Understanding RealEarth limits
-
-RealEarth’s free tier enforces several thresholds.  Anonymous
-users are limited to **512×512 px** images and **500 megapixels
-per day**.  Registered users (free) get **1024×1024 px** images and
-1 gigapixel per day【501551649795786†L42-L45】.  You’ll see a watermark or grey
-placeholder if you exceed these limits or if the site’s domain is not
-registered as an allowed referrer【704582725459236†L7-L16】.  Upgrading to
-RealEarth Plus removes watermarks and increases limits but is not
-required for this project.
+Tiles will load automatically every five minutes.  If you leave the
+access key empty or do not register your domain, RealEarth will return
+watermarks or an error message.
 
 ## Imagery sources and update frequency
 
@@ -95,16 +70,11 @@ required for this project.
   sectors like the Pacific Southwest (PSW).  The JavaScript appends a
   cache‑busting timestamp and synchronizes refreshes to five‑minute
   boundaries with a 20 second cushion.
-* **RealEarth overhead** – A single composite image combining the
-  GeoColor and Fog products for GOES‑19 CONUS is requested from
-  RealEarth’s `api/image` endpoint.  When properly configured, this
-  provides a top‑down map‑projected view of the Bay Area updated on the
-  same five‑minute cadence (but subject to RealEarth’s processing
-  latency and throttling).
-* **Overhead Zoom crop** – The page also displays a static crop of the
-  NOAA GeoColor image with sliders that let you pan horizontally and
-  vertically.  Use this view if RealEarth is unavailable or you want
-  manual control.
+* **RealEarth tiles** – Leaflet requests 256×256 tiles from RealEarth’s
+  tile server.  This yields a true overhead view that you can pan and
+  zoom.  Each tile request attaches your access key for watermark‑free
+  imagery.  The map refreshes every five minutes in sync with the
+  latest NOAA images.
 
 ## Customization
 

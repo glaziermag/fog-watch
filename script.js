@@ -1,197 +1,113 @@
-// Fog Visualizer script
+// -------------------------------
+// NOAA STAR (public) endpoints
+// -------------------------------
+const LATEST_URL = 'https://cdn.star.nesdis.noaa.gov/GOES19/ABI/SECTOR/psw/GEOCOLOR/1200x1200.jpg';
+const LOOP_URL   = 'https://cdn.star.nesdis.noaa.gov/GOES19/ABI/SECTOR/PSW/GEOCOLOR/GOES19-PSW-GEOCOLOR-600x600.gif';
 
-// Base URLs for the imagery.  The PSW (Pacific Southwest) sector contains
-// Northern California, Oregon and Nevada.  GEOColor merges true‑color
-// visible imagery with infrared at night to provide continuous viewing.
-const LATEST_URL =
-  "https://cdn.star.nesdis.noaa.gov/GOES19/ABI/SECTOR/psw/GEOCOLOR/1200x1200.jpg";
-const LOOP_URL =
-  "https://cdn.star.nesdis.noaa.gov/GOES19/ABI/SECTOR/PSW/GEOCOLOR/GOES19-PSW-GEOCOLOR-600x600.gif";
+// DOM handles
+const latestImg     = document.getElementById('latest-image');
+const loopImg       = document.getElementById('loop-image');
+const brightnessCtl = document.getElementById('brightnessRange');
 
-// DOM elements
-const latestImg = document.getElementById("latest-image");
-const loopImg = document.getElementById("loop-image");
-const timestampEl = document.getElementById("timestamp");
-const brightnessRange = document.getElementById("brightnessRange");
+// -------------------------------
+// RealEarth (tiles via Leaflet)
+// -------------------------------
+// Your RealEarth access key (from User Tools -> Access Keys)
+// NOTE: RealEarth enforces Allowed Referrers; add your GitHub Pages domain
+// (e.g. glaziermag.github.io) in the RealEarth UI. The key below comes from
+// the user; update it whenever you generate a new key.
+const REALEARTH_ACCESS_KEY = '4f4c1f95381e09dad07be6d804eee673';
 
-// Optional zoom image (may not exist if removed from markup)
-const zoomImg = document.getElementById("zoom-image");
+// Choose the RealEarth product (pick ONE).  Fog RGB is ideal at night because
+// it highlights low-level clouds, while GeoColor gives a blended day/night
+// representation.  Night Microphysics is another option for night fog.
+const RE_PRODUCT = 'G18-ABI-CONUS-fog';          // Fog RGB
+// const RE_PRODUCT = 'G18-ABI-CONUS-geo-color'; // True-color day / IR night
+// const RE_PRODUCT = 'G18-ABI-CONUS-night-microphysics'; // Enhanced night fog contrast
 
-// Pan controls for the zoom crop (may be undefined if controls are not present)
-const panXRange = document.getElementById("panXRange");
-const panYRange = document.getElementById("panYRange");
+// Map default view (center on SF Bay).  Latitude, longitude.
+const RE_CENTER   = [37.8, -122.3];
+const RE_ZOOM     = 6;               // Leaflet zoom 0..19 (6 shows NorCal nicely)
+let reMap, reLayer;
 
-// RealEarth overhead image element (may be null if markup removed)
-const reImg = document.getElementById("re-image");
-
-// RealEarth configuration.  These values define the center and zoom
-// for the Bay Area.  They are used to construct the RealEarth API URL.
-// See README.md for instructions on obtaining a free access key.
-const REALEARTH_PRODUCTS =
-  "G19-ABI-CONUS-geo-color,G19-ABI-CONUS-fog";
-// Longitude,Latitude (negative for west).  Center on San Francisco Bay.
-const REAL_EARTH_CENTER = [-122.4, 37.8];
-// Zoom level: higher numbers zoom in closer.  5 is a good balance for
-// capturing the Bay Area while showing some surrounding context.
-const REAL_EARTH_ZOOM = 5;
-// Requested image dimensions.  Anonymous RealEarth users are limited
-// to 512px composites; registered users get up to 1024px.  Adjust
-// these values to your account tier.
-const REAL_EARTH_WIDTH = 800;
-const REAL_EARTH_HEIGHT = 800;
-// Optional: your RealEarth access key.  Leave empty for anonymous
-// requests.  To obtain a key, register a free RealEarth account and
-// follow the instructions in the README.
-const REALEARTH_ACCESS_KEY = "";
-
-/**
- * Construct a RealEarth API URL for the configured products,
- * center, zoom and dimensions.  Attaches the access key if provided.
- */
-function buildRealEarthURL() {
-  const [lon, lat] = REAL_EARTH_CENTER;
-  let url =
-    "https://realearth.ssec.wisc.edu/api/image" +
-    `?products=${encodeURIComponent(REALEARTH_PRODUCTS)}` +
-    `&width=${REAL_EARTH_WIDTH}` +
-    `&height=${REAL_EARTH_HEIGHT}` +
-    `&center=${lon},${lat}` +
-    `&zoom=${REAL_EARTH_ZOOM}`;
-  if (REALEARTH_ACCESS_KEY && REALEARTH_ACCESS_KEY.trim() !== "") {
-    url += `&key=${encodeURIComponent(REALEARTH_ACCESS_KEY.trim())}`;
-  }
-  return url;
+// Build tile URL template with key + cachebuster
+function realEarthTileTemplate() {
+  const base = `https://realearth.ssec.wisc.edu/tiles/${RE_PRODUCT}/{z}/{x}/{y}.png`;
+  const qs = new URLSearchParams();
+  if (REALEARTH_ACCESS_KEY) qs.set('key', REALEARTH_ACCESS_KEY);
+  qs.set('v', Date.now().toString());
+  return `${base}?${qs.toString()}`;
 }
 
-/**
- * Update the objectPosition of the zoom image based on pan slider values.
- * Horizontal and vertical values are percentages (0–100) representing how
- * far to shift the crop relative to the full image.  This allows users to
- * reposition the cropped view without reloading the image.
- */
-function updateZoomPan() {
-  if (!zoomImg) return;
-  const x = panXRange ? panXRange.value : 0;
-  const y = panYRange ? panYRange.value : 0;
-  zoomImg.style.objectPosition = `${x}% ${y}%`;
+function initRealEarthMap() {
+  reMap = L.map('re-map', {
+    attributionControl: true,
+    zoomControl: true,
+    minZoom: 4,
+    maxZoom: 10,
+    preferCanvas: false
+  }).setView(RE_CENTER, RE_ZOOM);
+
+  reLayer = L.tileLayer(realEarthTileTemplate(), {
+    tileSize: 256,
+    updateWhenIdle: true,
+    updateInterval: 0,
+    keepBuffer: 0,
+    crossOrigin: false
+  }).addTo(reMap);
 }
 
-/**
- * Apply brightness filter to both images based on the range input.
- */
+function refreshRealEarthTiles() {
+  if (reLayer) reLayer.setUrl(realEarthTileTemplate());
+}
+
+// -------------------------------
+// Brightness control (applied to all visuals)
+// -------------------------------
 function applyBrightness() {
-  const brightnessValue = parseInt(brightnessRange.value, 10) / 100;
-  const filterStr = `brightness(${brightnessValue})`;
-  latestImg.style.filter = filterStr;
-  loopImg.style.filter = filterStr;
-  if (zoomImg) {
-    zoomImg.style.filter = filterStr;
-  }
-  if (reImg) {
-    reImg.style.filter = filterStr;
-  }
+  const factor = Number(brightnessCtl.value) / 100;
+  const filter = `brightness(${factor})`;
+  latestImg.style.filter = filter;
+  loopImg.style.filter = filter;
+  const tilePane = document.querySelector('#re-map .leaflet-pane.leaflet-tile-pane');
+  if (tilePane) tilePane.style.filter = filter;
 }
 
-/**
- * Update the timestamp overlay with the current local time.
- */
-function updateTimestamp() {
-  const now = new Date();
-  // Format as mm/dd/yyyy HH:MM AM/PM in Pacific Time
-  const options = {
-    timeZone: "America/Los_Angeles",
-    year: "numeric",
-    month: "short",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  };
-  const formatter = new Intl.DateTimeFormat("en-US", options);
-  const formatted = formatter.format(now);
-  timestampEl.textContent = `Updated: ${formatted}`;
-}
-
-/**
- * Refresh the still image and the two‑hour loop by appending a cache‑busting
- * query parameter.  The remote server updates imagery every five minutes.
- */
+// -------------------------------
+// Update cadence (align to ABI 5‑min boundaries)
+// -------------------------------
 function updateImages() {
-  const cacheBuster = `?v=${Date.now()}`;
-  latestImg.src = LATEST_URL + cacheBuster;
-  loopImg.src = LOOP_URL + cacheBuster;
-  if (zoomImg) {
-    zoomImg.src = LATEST_URL + cacheBuster;
-  }
-  // Update RealEarth overhead image if element exists
-  if (reImg) {
-    // Append cache buster to ensure fresh imagery.  RealEarth caches on
-    // the server side; the query parameter helps bust browser caches.
-    const reUrl = buildRealEarthURL();
-    reImg.src = `${reUrl}&v=${Date.now()}`;
-  }
-  // Immediately update the timestamp; onload will refine
-  updateTimestamp();
+  const t = Date.now();
+  latestImg.src = `${LATEST_URL}?v=${t}`;
+  loopImg.src   = `${LOOP_URL}?v=${t}`;
+  refreshRealEarthTiles();
 }
 
-// Event listeners
-brightnessRange.addEventListener("input", applyBrightness);
-
-// Listen for pan slider changes to update crop position
-if (panXRange && panYRange) {
-  panXRange.addEventListener("input", updateZoomPan);
-  panYRange.addEventListener("input", updateZoomPan);
-}
-
-// When the latest image loads, update the timestamp overlay using the image's
-// request time (approximate).  Some browsers cache aggressively even with
-// cache‑busters, so we update regardless.
-latestImg.addEventListener("load", updateTimestamp);
-
-// Initial brightness setting based on local time (nighttime gets a boost)
-function initializeBrightness() {
-  const now = new Date();
-  const hourLocal = now.toLocaleString("en-US", {
-    timeZone: "America/Los_Angeles",
-    hour: "2-digit",
-    hour12: false,
-  });
-  const hour = parseInt(hourLocal, 10);
-  // Daytime roughly between 6 and 20 local time
-  const defaultBrightness = hour >= 6 && hour <= 20 ? 120 : 160;
-  brightnessRange.value = defaultBrightness;
-  applyBrightness();
-}
-
-// Kick things off
-initializeBrightness();
-
-// Start an aligned refresh cycle.  This function synchronizes updates
-// to just after each five‑minute boundary, accounting for the time required
-// for NOAA and RealEarth to process new frames.  A 20‑second cushion is
-// added to ensure the new image is available before fetching.
 function startAlignedRefresh() {
-  // Fetch images immediately
-  updateImages();
-  // Compute milliseconds until the next 5‑minute mark plus 20‑second cushion
+  // Compute ms until the next UTC 5-minute boundary, add ~20s cushion
   const now = new Date();
-  const utcMinutes = now.getUTCMinutes();
-  const utcSeconds = now.getUTCSeconds();
-  const utcMs = now.getUTCMilliseconds();
-  const minutesUntilNext = 5 - (utcMinutes % 5);
-  let delay = minutesUntilNext * 60 * 1000 - utcSeconds * 1000 - utcMs;
-  // Add cushion so we fetch after the next frame is likely available
-  delay += 20000;
-  // Clamp to at least 60 seconds to avoid extremely rapid refreshes when
-  // launching close to a boundary
-  delay = Math.max(delay, 60 * 1000);
-  setTimeout(startAlignedRefresh, delay);
+  const msToNext5 =
+    (5 - (now.getUTCMinutes() % 5)) * 60_000
+    - (now.getUTCSeconds() * 1000 + now.getUTCMilliseconds());
+  const delay = Math.max(5_000, msToNext5 + 20_000);
+  setTimeout(function tick() {
+    updateImages();
+    setTimeout(tick, 5 * 60_000);
+  }, delay);
 }
 
-// Initialize pan position to match CSS default if zoom image and controls exist
-if (zoomImg && panXRange && panYRange) {
-  updateZoomPan();
-}
+// Refresh whenever the tab becomes visible
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) updateImages();
+});
 
-// Begin the aligned refresh loop
-startAlignedRefresh();
+// -------------------------------
+// Boot
+// -------------------------------
+window.addEventListener('DOMContentLoaded', () => {
+  initRealEarthMap();
+  applyBrightness();
+  updateImages();       // fetch now
+  startAlignedRefresh();
+  brightnessCtl.addEventListener('input', applyBrightness);
+});
