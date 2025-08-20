@@ -26,23 +26,87 @@ const brightnessCtl = document.getElementById('brightnessRange');
 // the user; update it whenever you generate a new key.
 const REALEARTH_ACCESS_KEY = '4f4c1f95381e09dad07be6d804eee673';
 
-// Choose a RealEarth product based on the local time in America/Los_Angeles.
-// During daylight hours (06–18) use GeoColor (true colour) and outside
-// those hours use the Night Microphysics product, which provides better
-// contrast for fog and low clouds at night.
+// Compute approximate sunrise and sunset times for a given date and location.
+// Based on NOAA's sunrise/sunset algorithm. Returns times in local hours (0–24).
+function calculateSunTimes(date, lat, lng) {
+  const rad = Math.PI / 180;
+  // Day of year
+  const startOfYear = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  const dayOfYear = Math.floor((date.getTime() - startOfYear.getTime()) / 86400000) + 1;
+  const lngHour = lng / 15;
+  const tzOffset = -date.getTimezoneOffset() / 60; // local offset from UTC in hours
+  function calcTime(isSunrise) {
+    const t = dayOfYear + ((isSunrise ? 6 : 18) - lngHour) / 24;
+    let M = (0.9856 * t) - 3.289;
+    let L = M + (1.916 * Math.sin(rad * M)) + (0.020 * Math.sin(2 * rad * M)) + 282.634;
+    L = (L + 360) % 360;
+    let RA = Math.atan(0.91764 * Math.tan(rad * L)) / rad;
+    RA = (RA + 360) % 360;
+    const Lquadrant = Math.floor(L / 90) * 90;
+    const RAquadrant = Math.floor(RA / 90) * 90;
+    RA = RA + (Lquadrant - RAquadrant);
+    RA = RA / 15;
+    const sinDec = 0.39782 * Math.sin(rad * L);
+    const cosDec = Math.cos(Math.asin(sinDec));
+    const zenith = 90.833; // official zenith
+    const cosH = (Math.cos(rad * zenith) - (sinDec * Math.sin(rad * lat))) / (cosDec * Math.cos(rad * lat));
+    if (cosH > 1 || cosH < -1) {
+      // Sun never rises/sets this day
+      return isSunrise ? 0 : 24;
+    }
+    let H = isSunrise
+      ? 360 - (Math.acos(cosH) / rad)
+      : Math.acos(cosH) / rad;
+    H = H / 15;
+    const T = H + RA - (0.06571 * t) - 6.622;
+    let UT = (T - lngHour) % 24;
+    if (UT < 0) UT += 24;
+    const localT = (UT + tzOffset + 24) % 24;
+    return localT;
+  }
+  const sunrise = calcTime(true);
+  const sunset = calcTime(false);
+  return { sunrise, sunset };
+}
+
+// Choose a RealEarth product based on sunrise/sunset and a 45‑minute buffer.
+// This function returns GeoColor between (sunrise + 45 min) and
+// sunset (local time).  Outside of that interval it returns Night
+// Microphysics to provide better low‑cloud contrast after dark.  We
+// compute sunrise/sunset using the NOAA algorithm and then compare
+// against the current local clock.  A small buffer is added to
+// sunrise so that we stay on the night product for ~45 minutes after
+// sunrise as the sun climbs higher.
 function getRealEarthProduct() {
   const now = new Date();
-  const hour = parseInt(
-    now.toLocaleString('en-US', {
-      timeZone: 'America/Los_Angeles',
-      hour: '2-digit',
-      hour12: false
-    }),
-    10
-  );
-  return hour >= 6 && hour <= 18
-    ? 'G18-ABI-CONUS-geo-color'
-    : 'G18-ABI-CONUS-night-microphysics';
+  const lat = 37.75;
+  const lon = -122.45;
+  const times = calculateSunTimes(now, lat, lon);
+  // Add 45 minutes (0.75 hours) to sunrise; use sunset as‑is for day end
+  const sunriseBuf = (times.sunrise + 0.75) % 24;
+  const sunsetBuf = times.sunset;
+  // Current local time in hours (0–24).  Compute hours and minutes
+  // separately so 30 minutes becomes 0.5 hours rather than 0.3.
+  const localString = now.toLocaleString('en-US', {
+    timeZone: 'America/Los_Angeles',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+  const [hStr, mStr] = localString.split(':');
+  const localHours = parseInt(hStr, 10) + parseInt(mStr, 10) / 60;
+  // Determine if we are between sunriseBuf and sunsetBuf.  If
+  // sunriseBuf <= sunsetBuf (the normal case), day is the interval
+  // [sunriseBuf, sunsetBuf).  If sunriseBuf > sunsetBuf (which
+  // happens near the poles in summer/winter), day spans the
+  // wrap‑around period and we invert the comparison.
+  let isDay;
+  if (sunriseBuf <= sunsetBuf) {
+    isDay = localHours >= sunriseBuf && localHours < sunsetBuf;
+  } else {
+    isDay = localHours >= sunriseBuf || localHours < sunsetBuf;
+  }
+  return isDay ? 'G18-ABI-CONUS-geo-color' : 'G18-ABI-CONUS-night-microphysics';
 }
 
 // Map default view (center on SF Bay).  Latitude, longitude.
