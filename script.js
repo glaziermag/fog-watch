@@ -26,10 +26,24 @@ const brightnessCtl = document.getElementById('brightnessRange');
 // the user; update it whenever you generate a new key.
 const REALEARTH_ACCESS_KEY = '4f4c1f95381e09dad07be6d804eee673';
 
-// Fixed RealEarth product for fog RGB.  Fog RGB emphasises low clouds and
-// marine layer and provides good contrast day and night.  See
-// https://realearth.ssec.wisc.edu/products for details.
-const RE_PRODUCT = 'G18-ABI-CONUS-fog';
+// Choose a RealEarth product based on the local time in America/Los_Angeles.
+// During daylight hours (06–18) use GeoColor (true colour) and outside
+// those hours use the Night Microphysics product, which provides better
+// contrast for fog and low clouds at night.
+function getRealEarthProduct() {
+  const now = new Date();
+  const hour = parseInt(
+    now.toLocaleString('en-US', {
+      timeZone: 'America/Los_Angeles',
+      hour: '2-digit',
+      hour12: false
+    }),
+    10
+  );
+  return hour >= 6 && hour <= 18
+    ? 'G18-ABI-CONUS-geo-color'
+    : 'G18-ABI-CONUS-night-microphysics';
+}
 
 // Map default view (center on SF Bay).  Latitude, longitude.
 // Center the map tightly on the San Francisco Bay Area and zoom in for a
@@ -40,7 +54,8 @@ let reMap, reLayer;
 
 // Build tile URL template with key + cachebuster
 function realEarthTileTemplate() {
-  const base = `https://realearth.ssec.wisc.edu/tiles/${RE_PRODUCT}/{z}/{x}/{y}.png`;
+  const product = getRealEarthProduct();
+  const base = `https://realearth.ssec.wisc.edu/tiles/${product}/{z}/{x}/{y}.png`;
   const qs = new URLSearchParams();
   if (REALEARTH_ACCESS_KEY) {
     qs.set('accesskey', REALEARTH_ACCESS_KEY);
@@ -117,7 +132,8 @@ function getRecentTimes(n) {
 // Build a tile URL template for a specific time (UTC).
 function realEarthTileTemplateForTime(dateObj) {
   const { date, time } = formatTimeForRealEarth(dateObj);
-  const base = `https://realearth.ssec.wisc.edu/tiles/${RE_PRODUCT}/${date}/${time}/{z}/{x}/{y}.png`;
+  const product = getRealEarthProduct();
+  const base = `https://realearth.ssec.wisc.edu/tiles/${product}/${date}/${time}/{z}/{x}/{y}.png`;
   const qs = new URLSearchParams();
   if (REALEARTH_ACCESS_KEY) qs.set('accesskey', REALEARTH_ACCESS_KEY);
   qs.set('v', Date.now().toString());
@@ -150,7 +166,7 @@ function startReplay() {
   function showNext() {
     const frameDate = frames[idx];
     reLayer.setUrl(realEarthTileTemplateForTime(frameDate));
-    // Update timestamp overlay to reflect the frame's time (local timezone)
+    // Update timestamp label to reflect the frame's time (local timezone)
     const tsEl = document.getElementById('timestamp');
     if (tsEl) {
       const local = frameDate.toLocaleString('en-US', {
@@ -182,8 +198,10 @@ function applyBrightness() {
   const factor = Number(brightnessCtl.value) / 100;
   // Apply both brightness and contrast.  A higher brightness also scales the
   // contrast for greater differentiation of clouds at night.
-  const contrast = 1 + (factor - 1) * 1.2;
-  const filter = `brightness(${factor}) contrast(${contrast})`;
+  // Compute a stronger contrast scale; saturate slightly to enhance colour
+  const contrast = 1 + (factor - 1) * 2.0;
+  const saturation = 1 + (factor - 1) * 0.5;
+  const filter = `brightness(${factor}) contrast(${contrast}) saturate(${saturation})`;
   const tilePane = document.querySelector('#re-map .leaflet-pane.leaflet-tile-pane');
   if (tilePane) tilePane.style.filter = filter;
 }

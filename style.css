@@ -75,18 +75,11 @@ h2 {
   position: relative;
 }
 
-/* Timestamp overlay positioned in the top-left corner of the map */
-#timestamp {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  padding: 4px 6px;
+/* Timestamp label in the controls bar */
+.timestamp-label {
   font-size: 0.75rem;
-  background: rgba(0, 0, 0, 0.5);
-  color: var(--text);
-  border-radius: 4px;
-  pointer-events: none;
-  z-index: 1000;
+  color: var(--muted);
+  margin-right: 12px;
 }
 
 /* Smooth fade when brightness changes */

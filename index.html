@@ -23,6 +23,9 @@
   </header>
 
   <section class="controls">
+    <!-- Timestamp label shows when the layer was last refreshed (local time). -->
+    <span id="timestamp" class="timestamp-label"></span>
+
     <label for="brightnessRange">Night brightness</label>
     <input id="brightnessRange" type="range" min="40" max="180" value="110" />
 
@@ -42,8 +45,6 @@
       last 15 minutes, and everything refreshes every 15 minutes.
     </p>
     <div id="re-map" class="map"></div>
-    <!-- Timestamp overlay shows the time of the most recent refresh (local timezone). -->
-    <div id="timestamp" class="timestamp"></div>
   </section>
 
   <!-- Removed duplicate overhead section -->
