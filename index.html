@@ -18,8 +18,8 @@
 <body>
   <header>
     <h1>Fog Watch — Bay Area</h1>
-    <p>Map‑projected GOES imagery via RealEarth.  Use the brightness slider to
-      improve visibility at night.</p>
+    <!-- Keep the tagline concise: users can infer functionality from controls. -->
+    <p>Overhead GOES imagery with roads overlay. Adjust brightness and replay the last 15 minutes.</p>
   </header>
 
   <section class="controls">
@@ -37,12 +37,10 @@
 
   <!-- Overhead map using RealEarth tiles (moved to the top) -->
   <section id="overhead-section" class="image-section">
-    <h2>Overhead (RealEarth tiles)</h2>
+    <h2>Overhead Map</h2>
+    <!-- A brief note about the imagery; unnecessary details removed for clarity. -->
     <p class="realearth-note">
-      Map‑projected tiles from RealEarth (GOES‑West CONUS).  The site uses
-      the Fog RGB product for maximum contrast and adds a semi‑transparent
-      road overlay (no city labels).  A replay button cycles through the
-      last 15 minutes, and everything refreshes every 15 minutes.
+      RealEarth tiles provide an overhead view; roads are drawn on top. Replay toggles through recent frames.
     </p>
     <div id="re-map" class="map"></div>
   </section>
